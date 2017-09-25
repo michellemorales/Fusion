@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 """ This is module for performing different multimodal fusion experiments """
+import glob  # this is for specifying pathnames according to a pattern
 import pandas
 import scipy.stats
 import numpy as np
@@ -90,9 +91,11 @@ if __name__ == "__main__":
     # TODO:
 
     # Get data for all participants
+    all_data = glob.glob('example/300*.csv')
 
     # Perform early fusion
-
+    early_fusion(all_data)
+    
     # Experimental Set-up : train on train-split.csv and test of dev_split.csv
 
     # Get depression labels for each participant from splits
