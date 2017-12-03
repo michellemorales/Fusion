@@ -5,8 +5,10 @@ import glob  # this is for specifying pathnames according to a pattern
 import pandas
 import scipy.stats
 import numpy as np
+import re
 from sklearn import svm
 from sklearn.metrics import mean_squared_error
+import feature_file_utils
 
 
 def early_fusion(multimodal_files):
@@ -55,7 +57,8 @@ def early_fusion(multimodal_files):
 
 def predict_regression(train_data, test_data, train_labels, test_labels):
     """
-    This function predicts depression score using an SVM regression algorithm (SVR - http://scikit-learn.org/stable/modules/svm.html#regression)
+    This function predicts depression score using an SVM regression algorithm 
+    (SVR - http://scikit-learn.org/stable/modules/svm.html#regression)
 
     :param train_data: list of feature lists for training data
     :param train_labels: list of depression score labels for training data
@@ -74,7 +77,9 @@ def predict_regression(train_data, test_data, train_labels, test_labels):
 
 def predict_class(train_data, test_data, train_labels, test_labels):
     """
-    This function predicts depression class (depressed/not depressed) using an SVM classification algorithm (SVC - http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html#sklearn.svm.SVC )
+    This function predicts depression class (depressed/not depressed) using 
+    an SVM classification algorithm 
+    (SVC - http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html#sklearn.svm.SVC )
 
     :param train_data: list of feature lists for training data
     :param train_labels: list of depression (binary) class labels for training data
@@ -89,12 +94,98 @@ def predict_class(train_data, test_data, train_labels, test_labels):
 if __name__ == "__main__":
     print('Running fusion experiments...')
     # TODO:
+    
+    # Find the folder with the data
+    # Ask user where it is later
 
     # Get data for all participants
-    all_data = glob.glob('example/300*.csv')
-
+    all_audio = glob.glob('DAIC_WOZ/Audio_Features/[0-9]*.csv')
+ #   print(all_audio)
+    
+    all_ling = glob.glob('DAIC_WOZ/Ling_Features/[0-9]*.csv')
+#    print(all_ling)
+    
+    all_video = glob.glob('DAIC_WOZ/Video_Features/[0-9]*.csv')
+#    print(all_video)
+    
+    all_labels = ['DAIC_WOZ/Labels/training_split.csv', 
+                  'DAIC_WOZ/Labels/dev_split.csv']
+    
+    all_labels_df = None
+    
+    for f in all_labels:
+        df = pandas.read_csv(f)
+        
+        if all_labels_df is None:
+            all_labels_df = df
+        else:
+            all_labels_df = all_labels_df.append(df)
+            
+    all_labels_small_df = all_labels_df[['Participant_ID', 'PHQ_Score']]  #was PHQ_Binary
+    all_labels_small_df.to_csv("/Users/tammy/Desktop/all_labels_small_df.csv")
+    
+    # With the above three variables, create a dictionary, key is the id number
+    # value is the count and it should be 3
+    all_dict = feature_file_utils.aggregate_feature_files(all_audio, all_ling, all_video)
+                
     # Perform early fusion
-    early_fusion(all_data)
+    all_data = None
+    
+#    for k in all_dict:
+#        if not str(int(k)+1) in all_dict:
+#            print(int(k)+1, 'is not an id in the files')
+    
+    from sklearn.preprocessing import Imputer
+    
+    for k in all_dict:
+        col_names, col_data = early_fusion(all_dict[k])
+        
+        #if bad data, skip the loop
+        if np.isnan(col_data).any() == True:
+            print("Skipping " + k)
+            continue
+            
+            # impute here
+        
+        col_names.append('Participant_ID')
+        col_data.append(k)  #append the key(participant_id) that is in all_dict
+        
+        if all_data == None:
+            all_data = dict(zip(col_names, [[x] for x in col_data]))
+        else:
+            for i in range(len(col_names)):
+                all_data[col_names[i]].append(col_data[i])
+ 
+    all_data_df = pandas.DataFrame(all_data)
+    all_data_df.to_csv("/Users/tammy/Desktop/all_data_df.csv") #Save it so no need to recreate it
+
+    
+    all_data_merged = pandas.merge(all_data_df, all_labels_small_df, on='Participant_ID', how='inner')
+    
+    labels = all_data_merged[['PHQ_Score']]  #was PHQ_Binary
+    data = all_data_merged.drop('PHQ_Score', axis=1)  #was PHQ_Binary
+    
+    from sklearn.model_selection import train_test_split
+    
+    data_train, data_test, labels_train, labels_test = train_test_split(data, labels, random_state=0)
+    pass
+    
+#    from sklearn.neighbors import KNeighborsClassifier
+#    
+#    clf = KNeighborsClassifier(n_neighbors=3)
+#    
+#    clf.fit(data_train, labels_train)
+#    
+#    print("Test set predictions: {}".format(classifier.predict(X_test)))
+    
+    
+ #   import sys
+ #   sys.stdout = open('dict_file', 'w')
+    
+#    sys.stdout = open('example_file', 'w')
+#    example = glob.glob('example/300*.csv')
+    
+#    print(early_fusion(example))
     
     # Experimental Set-up : train on train-split.csv and test of dev_split.csv
 
