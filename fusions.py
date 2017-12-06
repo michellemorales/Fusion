@@ -89,25 +89,8 @@ def predict_class(train_data, test_data, train_labels, test_labels):
         WHERE
         float accuracy is the percentage of correct predictions
     """
-
-
-if __name__ == "__main__":
-    print('Running fusion experiments...')
-    # TODO:
     
-    # Find the folder with the data
-    # Ask user where it is later
-
-    # Get data for all participants
-    all_audio = glob.glob('DAIC_WOZ/Audio_Features/[0-9]*.csv')
- #   print(all_audio)
-    
-    all_ling = glob.glob('DAIC_WOZ/Ling_Features/[0-9]*.csv')
-#    print(all_ling)
-    
-    all_video = glob.glob('DAIC_WOZ/Video_Features/[0-9]*.csv')
-#    print(all_video)
-    
+def get_labels():
     all_labels = ['DAIC_WOZ/Labels/training_split.csv', 
                   'DAIC_WOZ/Labels/dev_split.csv']
     
@@ -121,34 +104,45 @@ if __name__ == "__main__":
         else:
             all_labels_df = all_labels_df.append(df)
             
-    all_labels_small_df = all_labels_df[['Participant_ID', 'PHQ_Score']]  #was PHQ_Binary
-    all_labels_small_df.to_csv("/Users/tammy/Desktop/all_labels_small_df.csv")
+    return all_labels_df
+
+def read_labels():
+    try:
+        return pandas.read_csv("all_labels_df.csv")
+    except IOError:
+        labels = get_labels()
+        labels.to_csv("all_labels_df.csv")
+        return labels
+
+def isolate_column(column_to_keep, df):
+    return df[['Participant_ID', column_to_keep]]
+
+def read_data():
+    try:
+        return pandas.read_csv("all_data_df.csv")
+    except IOError:
+        all_data = get_data()
+        all_data.to_csv("all_data_df.csv")
+        return all_data
     
-    # With the above three variables, create a dictionary, key is the id number
-    # value is the count and it should be 3
-    all_dict = feature_file_utils.aggregate_feature_files(all_audio, all_ling, all_video)
+def get_data():
+    feature_files = feature_file_utils.get_feature_files()
+    
+    all_dict = feature_file_utils.aggregate_feature_files(feature_files)
                 
     # Perform early fusion
     all_data = None
     
-#    for k in all_dict:
-#        if not str(int(k)+1) in all_dict:
-#            print(int(k)+1, 'is not an id in the files')
-    
-    from sklearn.preprocessing import Imputer
-    
-    for k in all_dict:
-        col_names, col_data = early_fusion(all_dict[k])
+    for participant_id in all_dict:
+        col_names, col_data = early_fusion(all_dict[participant_id])
         
-        #if bad data, skip the loop
-        if np.isnan(col_data).any() == True:
-            print("Skipping " + k)
+        #if bad data, skip the loop, will replace this with impute
+        if np.isnan(col_data).any():
+            print("Skipping " + participant_id)
             continue
-            
-            # impute here
         
         col_names.append('Participant_ID')
-        col_data.append(k)  #append the key(participant_id) that is in all_dict
+        col_data.append(participant_id)
         
         if all_data == None:
             all_data = dict(zip(col_names, [[x] for x in col_data]))
@@ -156,14 +150,25 @@ if __name__ == "__main__":
             for i in range(len(col_names)):
                 all_data[col_names[i]].append(col_data[i])
  
-    all_data_df = pandas.DataFrame(all_data)
-    all_data_df.to_csv("/Users/tammy/Desktop/all_data_df.csv") #Save it so no need to recreate it
+    return pandas.DataFrame(all_data)
 
+if __name__ == "__main__":
+    print('Running fusion experiments...')
+    # TODO:
+    # Find the folder with the data
+    # Ask user where it is later
     
-    all_data_merged = pandas.merge(all_data_df, all_labels_small_df, on='Participant_ID', how='inner')
+    predictor = 'PHQ_Binary'
     
-    labels = all_data_merged[['PHQ_Score']]  #was PHQ_Binary
-    data = all_data_merged.drop('PHQ_Score', axis=1)  #was PHQ_Binary
+    all_labels_df = read_labels()
+    labels_binary_df = isolate_column(predictor, all_labels_df)
+    
+    all_data_df = read_data()
+
+    all_data_merged = pandas.merge(all_data_df, labels_binary_df, on='Participant_ID', how='inner')
+    
+    labels = all_data_merged[[predictor]]
+    data = all_data_merged.drop(predictor, axis=1)
     
     from sklearn.model_selection import train_test_split
     
