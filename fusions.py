@@ -158,7 +158,7 @@ if __name__ == "__main__":
     # Find the folder with the data
     # Ask user where it is later
     
-    predictor = 'PHQ_Binary'
+    predictor = 'PHQ_Score'
     
     all_labels_df = read_labels()
     labels_binary_df = isolate_column(predictor, all_labels_df)
@@ -173,24 +173,30 @@ if __name__ == "__main__":
     from sklearn.model_selection import train_test_split
     
     data_train, data_test, labels_train, labels_test = train_test_split(data, labels, random_state=0)
-    pass
     
-#    from sklearn.neighbors import KNeighborsClassifier
-#    
-#    clf = KNeighborsClassifier(n_neighbors=3)
-#    
-#    clf.fit(data_train, labels_train)
-#    
-#    print("Test set predictions: {}".format(classifier.predict(X_test)))
+    from sklearn.neighbors import KNeighborsClassifier
+
+    clf = KNeighborsClassifier(n_neighbors=3)
+
+    m = clf.fit(data_train, labels_train.values.ravel())
+
+    print("Test set predictions: {}".format(clf.predict(data_test)))
+    # Test set predictions: [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 1 0 0 1 1 0 1 1 0 0] (old one)
+
+    print("Test set accuracy: {:.2f}".format(clf.score(data_test, labels_test)))
     
+    data_test.to_csv("data_test_score.csv")
+    labels_test.to_csv("labels_test_score.csv")
+
+    # Test set accuracy: 0.67 (old one)
     
- #   import sys
- #   sys.stdout = open('dict_file', 'w')
+    clf2 = svm.SVR()
+    clf2.fit(data_train, labels_train.values.ravel())
+    predictions = clf2.predict(data_test)
     
-#    sys.stdout = open('example_file', 'w')
-#    example = glob.glob('example/300*.csv')
+    print("Test set predictions: {}".format(clf2.predict(data_test)))
+    print("Test set accuracy: {:.2f}".format(clf2.score(data_test, labels_test)))
     
-#    print(early_fusion(example))
     
     # Experimental Set-up : train on train-split.csv and test of dev_split.csv
 
