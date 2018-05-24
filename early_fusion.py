@@ -47,15 +47,16 @@ def get_data():
  
     return pandas.DataFrame(all_data)
 
-def early_fusion(clf):
-    predictor = 'PHQ_Score'
+def early_fusion(clf_creator):
+    all_data_df, all_labels_df = labels.prepare_dataframes(read_data())
     
-    all_data_df, all_labels_df = labels.prepare_dataframes(read_data(), predictor)
+    all_labels_df = all_labels_df[[labels.label_column_name]]
     
     data_train, data_test, labels_train, labels_test = train_test_split(
             all_data_df, all_labels_df, random_state=0
     )
 
+    clf = clf_creator()
     classifiers.train_classifier(data_train, labels_train, clf)
     
     return classifiers.score_classifier(data_test, labels_test, clf)

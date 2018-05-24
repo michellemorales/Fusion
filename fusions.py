@@ -3,8 +3,11 @@
 """ This is module for performing different multimodal fusion experiments """
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn import tree
+from sklearn.ensemble import AdaBoostClassifier
 
 import early_fusion
+import late_fusion
 
 def predict_class(train_data, test_data, train_labels, test_labels):
     """
@@ -21,13 +24,43 @@ def predict_class(train_data, test_data, train_labels, test_labels):
         float accuracy is the percentage of correct predictions
     """
 
+def classifier_grid_search():
+    grid = {
+# =============================================================================
+#             'kNN_3': lambda: KNeighborsClassifier(n_neighbors=3),
+#             'kNN_5': lambda: KNeighborsClassifier(n_neighbors=5),
+#             'kNN_10': lambda: KNeighborsClassifier(n_neighbors=10),
+#             'kNN_20': lambda: KNeighborsClassifier(n_neighbors=20),
+#             'kNN_50': lambda: KNeighborsClassifier(n_neighbors=50),
+#                         
+#             'DT_None': lambda: tree.DecisionTreeClassifier(),
+#             'DT_5': lambda: tree.DecisionTreeClassifier(max_depth=5),
+#             'DT_8': lambda: tree.DecisionTreeClassifier(max_depth=8),
+#             'DT_10': lambda: tree.DecisionTreeClassifier(max_depth=10),
+#             
+#             'AdaBoost_10': lambda: AdaBoostClassifier(n_estimators=10),
+#             'AdaBoost_100': lambda: AdaBoostClassifier(n_estimators=100),
+#             'AdaBoost_300': lambda: AdaBoostClassifier(n_estimators=300)
+# =============================================================================
+            }
+
+    for c in [0.01, 2, 5, 10, 20]:
+        for g in [-10, -5, -1, -1e-1, 0, 1e-1, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12, 1e-15, 1e-18]:
+            for k in ['linear', 'poly', 'sigmoid']:
+                grid['SVC_c%s_g%s_k%s' % (c, g, k)] = lambda: svm.SVC(C=c, kernel=k, gamma=g)
+
+    return grid
+
 if __name__ == "__main__":
     print('Running fusion experiments...')
+
+    grid = classifier_grid_search()    
+    for clf_desc in grid:
+        clf_creator = grid[clf_desc]
     
-    for clf in [svm.SVR(), KNeighborsClassifier(n_neighbors=3)]:
-        score = early_fusion.early_fusion(clf)
-    
-        print(score)
+        print "Early fusion", clf_desc, ":", early_fusion.early_fusion(clf_creator)
+        #print "Late fusion with voting", clf_desc, ":", late_fusion.late_fusion_voting(clf_creator)
+        #print "Late fusion", clf_desc, ":", late_fusion.late_fusion(clf_creator)
 
 # =============================================================================
 #     print("Test set predictions: {}".format(clf.predict(data_test)))
